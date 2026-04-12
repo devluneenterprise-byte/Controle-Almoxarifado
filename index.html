@@ -2016,6 +2016,7 @@ function renderChartPizza(){
   });
 }
 
+
 // ── lotes PEPS ativos ──
 function renderPepsAtivos(){
   const allPeps = lotes.filter(l=>saldoLote(l)>0).sort((a,b)=>a.data.localeCompare(b.data));
