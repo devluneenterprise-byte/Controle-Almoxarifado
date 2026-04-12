@@ -1010,6 +1010,11 @@ function doLogin(){
     return;
   }
   isAdmin = perfilAtual === 'gestor';
+  sessionStorage.setItem('peps_sessao', JSON.stringify({ perfil: perfilAtual, isAdmin }));
+  abrirApp();
+}
+
+function abrirApp(){
   document.getElementById('login-wrap').classList.add('fade-out');
   document.getElementById('app').classList.add('show');
   setTimeout(() => document.getElementById('login-wrap').style.display = 'none', 650);
@@ -1035,7 +1040,7 @@ function aplicarPerfil(){
   });
 }
 
-function doLogout(){ location.reload(); }
+function doLogout(){ sessionStorage.removeItem('peps_sessao'); location.reload(); }
 
 // ── TROCA DE MODO ──
 function trocarModo(novo){
@@ -1534,6 +1539,13 @@ function renderAll(){
   renderEntradasRec();
   renderSaidas();
   renderHistorico();
+
+  const catSel = document.getElementById('df-cat');
+if(catSel){
+  const catAtual = catSel.value;
+  const cats = [...new Set(lotes.map(l=>l.categoria).filter(Boolean))].sort();
+  catSel.innerHTML = '<option value="">Todas</option>' + cats.map(c=>`<option value="${c}"${c===catAtual?' selected':''}>${c}</option>`).join('');
+}
 }
 
 // ── badge topo ──
@@ -1664,11 +1676,20 @@ function atalhoMes(tipo){
   if(tipo === 'mes-ant')    { _periodoMes = cMes===1?12:cMes-1; _periodoAno = cMes===1?cAno-1:cAno; }
   if(tipo === 'ano-atual')  { _periodoMes = null;  _periodoAno = cAno; }
   if(tipo === 'tudo')       { _periodoMes = null;  _periodoAno = null; }
-  if(tipo === 'custom')     { _periodoMes = cMes;  _periodoAno = cAno; } // abre no mês atual, usuário navega
+  if(tipo === 'custom')     { _periodoMes = cMes;  _periodoAno = cAno;
+  const navEl = document.getElementById('period-month-nav');
+  if(navEl) navEl.style.display = 'flex';
+}
   _sincronizarPeriodo();
 }
 
 function aplicarFiltrosDash(){
+
+  const catSel = document.getElementById('df-cat');
+  const catAtual = catSel.value;
+  const cats = [...new Set(lotes.map(l=>l.categoria).filter(Boolean))].sort();
+  catSel.innerHTML = '<option value="">Todas</option>' + cats.map(c=>`<option value="${c}"${c===catAtual?' selected':''}>${c}</option>`).join('');
+
   // dashFiltroMes já é gerido por _sincronizarPeriodo — aqui só lemos cat/prod
   dashFiltroCat  = document.getElementById('df-cat').value  || '';
   dashFiltroProd = document.getElementById('df-prod').value || '';
@@ -1768,8 +1789,7 @@ function renderMetrics(){
 
 // ── críticos — graduados por estMin ──
 function renderCritical(){
-  const { lotesF } = dadosFiltrados();
-  const codsF = [...new Set(lotesF.map(l=>l.cod))];
+  const codsF = [...new Set(lotes.map(l=>l.cod))];
 
   const list = codsF.map(cod => {
     const estMin = getEstMin(cod);
@@ -1781,7 +1801,7 @@ function renderCritical(){
     if(saldo < estMin)              nivel = 'vermelho';
     else if(saldo === estMin)       nivel = 'laranja';
     else if(saldo <= estMin * 1.2)  nivel = 'amarelo';
-    if(!nivel) return null;
+    else                            nivel = 'ok';
 
     return { cod, nome, saldo, estMin, nivel };
   }).filter(Boolean).sort((a,b) => {
@@ -1798,6 +1818,7 @@ function renderCritical(){
   el.innerHTML = list.map((x, i) => {
     const pct = x.estMin > 0 ? Math.min((x.saldo / x.estMin) * 100, 100) : 0;
     const cores = {
+      ok:      { bar:'#22C55E', badge:'b-ok',           label:'✓ Estoque OK' },
       amarelo: { bar:'#F59E0B', badge:'badge-amarelo', label:'⚠ Próximo do mínimo' },
       laranja:  { bar:'#F97316', badge:'badge-laranja', label:'▲ No limite mínimo' },
       vermelho: { bar:'#EF4444', badge:'badge-vermelho', label:'✕ Abaixo do mínimo' }
@@ -2787,6 +2808,22 @@ document.addEventListener('keydown', e => {
     fecharModalFornecedor();
   }
 });
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    const s = sessionStorage.getItem('peps_sessao');
+    if(!s) return;
+    try {
+      const { perfil, isAdmin: admin } = JSON.parse(s);
+      perfilAtual = perfil;
+      isAdmin = admin;
+      document.getElementById('login-wrap').style.display = 'none';
+      document.getElementById('app').classList.add('show');
+      aplicarPerfil();
+      initFiltroMes();
+      initFirebase();
+    } catch(e){ sessionStorage.removeItem('peps_sessao'); }
+  });
 </script>
 </body>
 </html>
